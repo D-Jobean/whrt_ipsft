@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/README">
+        <file>QtLearn.txt</file>
+        <file>QtRef.txt</file>
+    </qresource>
+    <qresource prefix="/USER">
+        <file>ProgressLog.txt</file>
+        <file>plugs.ico</file>
+        <file>plug.ico</file>
+    </qresource>
+</RCC>

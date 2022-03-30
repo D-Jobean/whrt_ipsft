@@ -1,0 +1,55 @@
+QT5.9编程技巧
+
+1、Qt中的控制台打印调试：
+使用qDebug()函数或std::cout进行控制台打印。qDebug()可以直接输出QString类型，std::cout需要通过qPrintable(QString)将QString转化成Char*输出。qDebug的一般使用方式是:
+#include <QDebug>
+#define QDEBUG qDebug()<<"["<<__FILE__<<":"<<__func__<<":"<<__LINE__<<"]"
+QDEBUG << QString ;
+
+2、Qt中的禁用拷贝构造函数和赋值操作
+所有继承了QObject的类均不可使用拷贝构造函数Class(const Class &)和赋值运算符‘=’：Class &operator=(const Class &)
+原因：因为C++编译器自动生成的拷贝函数①不处理静态成员变量；②指针变量只做简单的赋值而不会给动态分配空间（只做浅拷贝），需要程序员自己实现合适的拷贝构造函数，容易出错。
+编译器对拷贝函数的一般调用时机：①对象以值传递的方式传入函数参数，会调用拷贝构造函数生成局部变量；②对象以值传递的方式从函数返回时，会调用拷贝构造函数生成临时变量，析构局部变量；
+避免防止拷贝构造函数出错的方法：Qt通过宏定义private：Q_DISABLE_COPY(Class)声明私有拷贝构造函数，从编译层面上禁止拷贝构造函数和赋值运算符的行为
+但是，Qt中的如QString类、QImage部分官方类也实现了拷贝构造函数，底层是通过Qt的隐式分享进行操作的，官方文档中写到：
+“QImage objects can be passed around by value since the QImage class uses implicit data sharing.”QImage对象可以当成值直接传递，因为QImage的实现使用了“隐式数据分享
+可知，在Qt中很多C++类使用隐式数据共享来最大化利用现有资源避免了复制数据。隐式分享在作为参数传递的时候具有安全和效率，因为传递的内容只有一个指向数据的指针。只有当一个函数修改了被指向数据的内容，才进行真正的数据拷贝（写时复制）。
+Qt中使用了隐式数据分享的类有：QJsonArray，QList，QString，QImage，QPen，QHostAddress等，详情：https://doc.qt.io/qt-5/implicit-sharing.html。
+总结：Qt中官方给的特定的类如果存在public拷贝构造函数，则说明官方已经实现了隐式分享，可以直接进行赋值操作，直接返回对象是更有优势的，避免了（new、delete）自己做内存管理；
+自定义的QObject子类默认式禁用了拷贝构造函数和赋值运算，应在可能出现拷贝构造函数调用的地方使用指针变量，代码更规范不易出错，也无需考虑拷贝构造函数具体编写，例如：
+List<Apple*> list;    Apple *a = new Apple();    list.append(a); //如果使用List<Apple>非指针方式将报编译错误error: 'QObject::QObject(const QObject&)' is private
+
+3、Qt中对象父子关系绑定
+所有的QObject类的构造函数都如下所示，构造函数都必须包含一个参数*parent，当不指定父对象是参数设置为0，则该对象为新的关系树的根或者顶层窗口。
+Apple::Apple(QObject *parent) : QObject(parent){}     //Constructs an object with parent object parent.
+在堆空间中，绑定父子关系的子对象，不需要delete操作，子对象会跟随父对象自动析构。 故建议用指针创建（也就是堆空间创建的）的方式QObject来加入Qt对象关系树结构中；
+但在栈空间中，C++规则要求构造函数的调用顺序与析构函数的调用顺序相反，如果将局部变量（也就是栈空间创建的）加入父子关系结构树中，Qt可能首先根据结构树销毁一遍子元素，C++根据规则超出作用域后又再销毁一遍子元素，出现重复调用析构函数违反C++编程规则的错误情况，
+
+4、如何在编译器中以管理员身份运行程序
+Qt5.9中使用管理员身份运行Qt Creator即可。类似PC系统相关配置需要获得管理员权限才可以成功。
+
+5、Qt类中非指针成员变量（内嵌对象）的初始化
+这是C++语言的类的内嵌对象初始化的基础内容。
+成员变量的初始化不管是指针还是非指针，都需要在类的构造函数上进行。
+指针类型的内嵌对象在类的构造函数体内用new调用内嵌对象的带参构造函数进行初始化
+非指针类型的内嵌对象在类的构造函数名称后面用","通过内嵌对象初始化映射关系调用内嵌对象的带参构造函数进行初始化
+
+6、Qt信号槽失效问题
+信号和槽的绑定是基于对象的，不是基于类型的，故需要对空指针创建对象实例之后绑定信号槽才有效；
+另外，如果不存在编程错误，可以尝试点击重新构建Qt项目试试。
+
+7、Qt5设置应用程序图标及程序的发布
+①设置图标.ico
+在.pro文件中添加语句即可设置程序图标：
+RC_ICONS =  myicon.ico   #图标必须是.ico格式，且图标文件放到工程文件根目录即可。
+②生成可执行文件.exe
+选择构建模式为（左下角电脑图标）releaes，然后重新构建（左下角锤子图标），在对应的release文件夹会生成exe程序，运行时会提示缺少对应的库。
+③部署程序所需的库.dll
+在D:\program\qt5.9.1\5.9.1\mingw53_32\bin下有程序运行所需的所有依赖库文件，找到所用到的库复制到只包含.exe文件夹下即可！使用Qt自带的win下部署工具windeployqt可以快速根据依赖关系复制库文件：
+这里建议使用Qt自带的命令行工具进行部署避免引入系统PATH下的同名库，通常在开始菜单里可以找到Qt自带的命令行工具，或者按路径找：C:\Users\Administrator\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Qt 5.9.1\5.9.1\MinGW 5.3.0 (32-bit)
+D:\program\qt5.9.1\5.9.1\mingw53_32>windeployqt  E:\workspace\helloworld.exe   //注意如果运行失败，可能还是复制了系统PATH同名库导致，找到Qt下的同名库替换即可。
+④打包程序成安装包
+可使用免费的程序打包工具如Inno setup软件进行打包即可。
+
+8、运行时空指针错误
+程序直接crash，不会有任何提示。

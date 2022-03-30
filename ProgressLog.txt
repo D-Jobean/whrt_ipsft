@@ -1,0 +1,28 @@
+20220305
+通过QNetworkInterface静态函数获取到了PC本地IP接口信息
+包括物理地址、是否有效、是否活动、是否为回送地址等信息
+
+20220307
+构建顺序容器存储获取到的PC本地IP接口对象信息
+报错：IPInfoLists.append(iPinfo);//将IP接口对象添加至List当中
+解决：由于QObject禁用拷贝构造函数导致，使用QList<IPInfo*>即可。
+
+20220313
+在IPConfig.h中增加IPv4参数宏IP/MASK/GATEWAY
+实现了UI界面的操作
+//    ui->textBrowser;   用于列出所有的IP端口、活动端口和提示信息
+//    ui->spinBox;       用于指出设定哪个宏的IP参数至活动端口
+//    ui->pushButton_1;  用于查看当前活动端口
+//    ui->pushButton_2;  用于获取spinBox的值设置到活动端口
+netsh的cmd命令需要获取管理员权限才能使用
+
+20220316
+完全实现了serialport类和ipconfig类
+这两个类均可以对当前端口，使用timer进行不间断的定时扫描检测，做出连接断开的提示
+当mainwindow槽接收到串口信息，将0x进制的串口信息转化成int然后调用对应的宏设置PC的IP地址
+
+20220317
+实现了托盘程序运行模式
+修复问题：
+网络未连接时配置IP导致程序崩溃->运行时空指针引用问题
+托盘连续提示串口未连接->使用flag判断解决
